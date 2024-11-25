@@ -81,6 +81,7 @@ manager = PixelStreamResourceManager()
 
 # Add some mock available streams for testing
 manager.available_streams['Infosys']['stream1'] = 'https://share.streampixel.io/66f57133ee04dcc4dd642b48'
+manager.available_streams['Infosys']['stream2'] = 'https://share.streampixel.io/66f57133ee04dcc4dd642b48'
 
 
 @app.post('/getstream', response_class=ORJSONResponse)
