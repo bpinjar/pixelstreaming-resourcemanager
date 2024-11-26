@@ -7,3 +7,4 @@ requests==2.31.0
 openai==1.10.0
 orjson==3.9.12
 python-multipart==0.0.6
+pymongo==4.10.1

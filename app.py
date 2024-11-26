@@ -44,7 +44,13 @@ app.add_middleware(
 
 class PixelStreamResourceManager:
     def __init__(self):
-        self.services = []
+        self.services = []  # Will be initialized from the database
+        self.reload_services()
+
+    def reload_services(self):
+        """Reload the services list from the database."""
+        self.services = [doc["service"] for doc in streams_collection.find({}, {"service": 1})]
+        logging.info(f"Reloaded services from database: {self.services}")
 
     def initialize_collections(self):
         """Ensure MongoDB has required structure."""
