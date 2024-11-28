@@ -25,14 +25,14 @@ jobs:
       # Build Docker image
       - name: Build Docker image
         run: |
-          docker build -t my-app .
+          docker build -t pixelstreaming-manager .
 
       # Tag Docker image
       - name: Tag Docker image
         run: |
-          docker tag my-app:latest 732352859943.dkr.ecr.us-east-1.amazonaws.com/my-app-repository:latest
+          docker tag my-app:latest 732352859943.dkr.ecr.us-east-1.amazonaws.com/pixelstreaming-manager:latest
 
       # Push Docker image to ECR
       - name: Push Docker image to ECR
         run: |
-          docker push 732352859943.dkr.ecr.us-east-1.amazonaws.com/my-app-repository:latest
+          docker push 732352859943.dkr.ecr.us-east-1.amazonaws.com/pixelstreaming-manager:latest
