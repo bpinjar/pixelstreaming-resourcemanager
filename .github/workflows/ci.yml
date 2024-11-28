@@ -30,7 +30,7 @@ jobs:
       # Tag Docker image
       - name: Tag Docker image
         run: |
-          docker tag my-app:latest 732352859943.dkr.ecr.us-east-1.amazonaws.com/pixelstreaming-manager:latest
+          docker tag pixelstreaming-manager:latest 732352859943.dkr.ecr.us-east-1.amazonaws.com/pixelstreaming-manager:latest
 
       # Push Docker image to ECR
       - name: Push Docker image to ECR
