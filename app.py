@@ -7,8 +7,19 @@ from datetime import datetime
 import uvicorn
 import logging
 
+
+from dotenv import load_dotenv
+from pymongo import MongoClient
+
+# Load environment variables from .env file
+load_dotenv()
+import os
+# Retrieve MongoDB URI from environment variables
+
 # MongoDB Configuration
-uri = 'mongodb+srv://aetiustestadmin:tWFn4YzTyYw8UDhg@aetiustestdb.xi8oe.mongodb.net/?retryWrites=true&w=majority&loadbalanced=true'
+
+
+uri = os.getenv("MONGODB_URI")
 client = pymongo.MongoClient(uri)
 db = client['pixel_stream_manager']
 streams_collection = db['streams']
