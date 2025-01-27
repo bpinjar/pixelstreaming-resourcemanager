@@ -4,6 +4,8 @@ from typing import Optional, List
 import pymongo
 from bson.objectid import ObjectId
 from datetime import datetime
+import uuid  # Import the UUID library for unique IDs
+
 import uvicorn
 import logging
 
@@ -23,6 +25,7 @@ uri = os.getenv("MONGODB_URI")
 client = pymongo.MongoClient(uri)
 db = client['pixel_stream_manager']
 streams_collection = db['streams']
+cost_collection = db['costs']
 
 # FastAPI Initialization
 app = FastAPI(title="Pixel Streaming Manager", description="API for managing pixel streaming services.", version="1.0")
@@ -241,6 +244,18 @@ def request_stream(requester: str = Body(..., embed=True)):
 
     # Assign the stream to the requester
     streams_collection.update_one({"_id": available_stream["_id"]}, {"$set": {"requester": requester}})
+    
+    
+    # Log to cost_collection
+    cost_collection.insert_one({
+        "id": str(uuid.uuid4()),  # Generate a unique ID
+        "requester": requester,
+        "streamName": available_stream["streamName"],
+        "pool": available_stream["pool"],
+        "timestamp": datetime.utcnow().isoformat(),
+    })
+    
+    
     logger.info(f"Stream {available_stream['streamName']} assigned to requester {requester}")
     return {"message": "Stream assigned", "streamDetails": format_stream(available_stream)}
 
