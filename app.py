@@ -160,8 +160,8 @@ def update_stream(stream_name: str = Query(..., description="The name of the str
     logger.info(f"Stream {stream_name} in pool {pool_name} updated")
     return {"message": "Stream updated"}
 
-@app.put("/releaseStream", response_model=dict)
-def release_stream(
+@app.put("/releaseStream_bkp", response_model=dict)
+def release_stream_bkp(
     pool: str = Query(..., description="The pool name of the stream to release"),
     stream_name: str = Query(..., description="The name of the stream to release")
 ):
@@ -178,7 +178,57 @@ def release_stream(
         raise HTTPException(status_code=404, detail="Stream not found")
 
     logger.info(f"Stream {stream_name} in pool {pool} released")
+    
     return {"message": "Stream released"}
+from pymongo import DESCENDING
+
+@app.post("/releaseStream", response_model=dict) 
+def release_stream(requester: str = Body(..., embed=True),
+                   stopped_by: str = Body(..., embed=True),
+                   stopped_reason: str = Body(..., embed=True),
+                   pool: str = Body(..., embed=True)):
+    """
+    Release a stream by setting its requester to None based on pool and streamName.
+    """
+    
+    # Update the requester field to null in the stream_collection for the matching requester
+    stream_update_result = streams_collection.update_one(
+        {"requester": requester},  # Match the stream by requester
+        {"$set": {"requester": None, "lastUsedTime": datetime.utcnow().isoformat()}},  # Set requester to null and update lastUsedTime
+        upsert=False  # Ensure the operation is not an upsert
+    )
+
+    if stream_update_result.modified_count == 0:
+        logger.warning(f"No active stream found for requester {requester} in stream_collection")
+        raise HTTPException(status_code=404, detail="No active stream found for the requester in stream_collection")
+
+    logger.info(f"Stream released for requester {requester}, entries updated in both collections")
+   
+    """
+    Release the stream for the given requester.
+    Update the streamReleaseTime in the cost_collection for the latest entry without a release time.
+    """
+    
+    # Find the latest entry for the requester with no release time
+    latest_entry = cost_collection.find_one(
+        {"requester": requester, "streamReleaseTime": {"$exists": False}},
+        sort=[("streamRequestedTime", DESCENDING)]
+    )
+
+    if not latest_entry:
+        logger.error(f"No active stream found for requester {requester}")
+        raise HTTPException(status_code=404, detail="No active stream found for the requester")
+
+    # Update the release time for the found entry
+    cost_collection.update_one(
+        {"_id": latest_entry["_id"]},
+        {"$set": {"streamReleaseTime": datetime.utcnow().isoformat(),
+                  "stoppedBy": stopped_by,
+                  "stoppedReason": stopped_reason}}
+    )
+
+    logger.info(f"Stream released for requester {requester}, entry updated")
+    return {"message": "Stream released successfully", "updatedEntry": str(latest_entry["_id"])}
 
 
 @app.get("/getStreamDetails", response_model=StreamResponse)
@@ -242,9 +292,17 @@ def request_stream(requester: str = Body(..., embed=True)):
         logger.error("No available streams")
         raise HTTPException(status_code=404, detail="No available streams")
 
+    # # Assign the stream to the requester
+    # streams_collection.update_one({"_id": available_stream["_id"]}, {"$set": {"requester": requester},
+    #                                                                  "lastUsedTime": datetime.utcnow().isoformat()})
     # Assign the stream to the requester
-    streams_collection.update_one({"_id": available_stream["_id"]}, {"$set": {"requester": requester}})
-    
+    streams_collection.update_one(
+        {"_id": available_stream["_id"]},
+        {"$set": {
+            "requester": requester,
+            "lastUsedTime": datetime.utcnow().isoformat()
+        }}
+    )
     
     # Log to cost_collection
     cost_collection.insert_one({
@@ -252,12 +310,13 @@ def request_stream(requester: str = Body(..., embed=True)):
         "requester": requester,
         "streamName": available_stream["streamName"],
         "pool": available_stream["pool"],
-        "timestamp": datetime.utcnow().isoformat(),
+        "streamRequestedTime": datetime.utcnow().isoformat(),
     })
     
     
     logger.info(f"Stream {available_stream['streamName']} assigned to requester {requester}")
-    return {"message": "Stream assigned", "streamDetails": format_stream(available_stream)}
+    assigned_stream = streams_collection.find_one({"requester": requester})
+    return {"message": "Stream assigned", "streamDetails": format_stream(assigned_stream)}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
